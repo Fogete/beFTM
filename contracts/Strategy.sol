@@ -9,18 +9,21 @@ import "@openzeppelin-2/contracts/ownership/Ownable.sol";
 import "../../utils/LPTokenWrapper.sol";
 
 interface IGasPrice {
-    function maxGasPrice() external returns (uint);
+    function maxGasPrice() external returns (uint256);
 }
 
 contract GasThrottler {
-
     bool public shouldGasThrottle = true;
 
-    address public gasprice = address(0xA43509661141F254F54D9A326E8Ec851A0b95307);
+    address public gasprice =
+        address(0xA43509661141F254F54D9A326E8Ec851A0b95307);
 
     modifier gasThrottle() {
         if (shouldGasThrottle && Address.isContract(gasprice)) {
-            require(tx.gasprice <= IGasPrice(gasprice).maxGasPrice(), "gas is too high!");
+            require(
+                tx.gasprice <= IGasPrice(gasprice).maxGasPrice(),
+                "gas is too high!"
+            );
         }
         _;
     }
@@ -28,10 +31,15 @@ contract GasThrottler {
 
 interface IRewardPool {
     function deposit(uint256 amount) external;
+
     function stake(uint256 amount) external;
+
     function withdraw(uint256 amount) external;
+
     function earned(address account) external view returns (uint256);
+
     function getReward() external;
+
     function balanceOf(address account) external view returns (uint256);
 }
 
@@ -54,10 +62,18 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
     bool public harvestOnDeposit;
     uint256 public lastHarvest;
 
-    event StratHarvest(address indexed harvester, uint256 wantHarvested, uint256 tvl);
+    event StratHarvest(
+        address indexed harvester,
+        uint256 wantHarvested,
+        uint256 tvl
+    );
     event Deposit(uint256 tvl); // emit Deposit(balanceOf());
     event Withdraw(uint256 tvl); // emit Withdraw(balanceOf());
-    event ChargedFees(uint256 callFees, uint256 beefyFees, uint256 strategistFees);
+    event ChargedFees(
+        uint256 callFees,
+        uint256 beefyFees,
+        uint256 strategistFees
+    );
 
     constructor(
         address _want,
@@ -69,7 +85,16 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
         address _beefyFeeRecipient,
         address[] memory _outputToNativeRoute,
         address[] memory _outputToWantRoute
-    ) StratManager(_keeper, _strategist, _unirouter, _vault, _beefyFeeRecipient) public {
+    )
+        public
+        StratManager(
+            _keeper,
+            _strategist,
+            _unirouter,
+            _vault,
+            _beefyFeeRecipient
+        )
+    {
         want = _want;
         rewardPool = _rewardPool; // 0xe00d25938671525c2542a689e42d1cfa56de5888
 
@@ -77,8 +102,14 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
         native = _outputToNativeRoute[_outputToNativeRoute.length - 1];
         outputToNativeRoute = _outputToNativeRoute;
 
-        require(_outputToWantRoute[0] == output, "outputToWantRoute[0] != output");
-        require(_outputToWantRoute[_outputToWantRoute.length - 1] == want, "outputToWantRoute[last] != want");
+        require(
+            _outputToWantRoute[0] == output,
+            "outputToWantRoute[0] != output"
+        );
+        require(
+            _outputToWantRoute[_outputToWantRoute.length - 1] == want,
+            "outputToWantRoute[last] != want"
+        );
         outputToWantRoute = _outputToWantRoute;
 
         _giveAllowances();
@@ -109,7 +140,9 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
         }
 
         if (tx.origin != owner() && !paused()) {
-            uint256 withdrawalFeeAmount = wantBal.mul(withdrawalFee).div(WITHDRAWAL_MAX); // withdrawalFee = 1 (0.01%) || WITHDRAWAL_MAX = 10000
+            uint256 withdrawalFeeAmount = wantBal.mul(withdrawalFee).div(
+                WITHDRAWAL_MAX
+            ); // withdrawalFee = 1 (0.01%) || WITHDRAWAL_MAX = 10000
             wantBal = wantBal.sub(withdrawalFeeAmount);
         }
 
@@ -133,7 +166,6 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
         _harvest(callFeeRecipient);
     }
 
-
     function managerHarvest() external onlyManager {
         _harvest(tx.origin);
     }
@@ -141,7 +173,7 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
     // Compounds earnings and charges performance fee
     function _harvest(address callFeeRecipient) internal whenNotPaused {
         IRewardPool(rewardPool).getReward();
-        uint256 outputBal = IERC20(output).balanceOf(address(this));
+        uint256 outputBal = IERC20(output).balanceOf(address(this)); // wFTM
         if (outputBal > 0) {
             chargeFees(callFeeRecipient);
             swapRewards();
@@ -155,7 +187,9 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
 
     // Performance fees
     function chargeFees(address callFeeRecipient) internal {
-        uint256 nativeBal = IERC20(output).balanceOf(address(this)).mul(45).div(1000);
+        uint256 nativeBal = IERC20(output).balanceOf(address(this)).mul(45).div(
+            1000
+        );
 
         uint256 callFeeAmount = nativeBal.mul(callFee).div(MAX_FEE); // 11
         IERC20(native).safeTransfer(callFeeRecipient, callFeeAmount);
@@ -175,11 +209,20 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
             // Do nothing
         } else {
             uint256 outputBal = IERC20(output).balanceOf(address(this));
-            IUniswapRouterETH(unirouter).swapExactTokensForTokensSimple(outputBal, 0, output, want, true, address(this), now);
+            // IUniswapRouterETH = 0xa38cd27185a464914D3046f0AB9d43356B34829D (Solidly)
+            IUniswapRouterETH(unirouter).swapExactTokensForTokensSimple(
+                outputBal,
+                0,
+                output,
+                want,
+                true,
+                address(this),
+                now
+            );
         }
     }
 
-    // Calculate the total underlaying 'want' held by the strat.
+    // Calculate the total underlaying 'want' held by the strat (TVL).
     function balanceOf() public view returns (uint256) {
         return balanceOfWant().add(balanceOfPool());
     }
@@ -194,25 +237,27 @@ contract StrategyCommonRewardPool is StratManager, FeeManager, GasThrottler {
         return IRewardPool(rewardPool).balanceOf(address(this));
     }
 
-    // Returns rewards unharvested
+    // Returns rewards unharvested.
     function rewardsAvailable() public view returns (uint256) {
         return IRewardPool(rewardPool).earned(address(this));
     }
 
-    // Native reward amount for calling harvest
+    // Native reward amount for calling harvest.
     function callReward() public view returns (uint256) {
         uint256 outputBal = rewardsAvailable();
         uint256 nativeOut;
         if (outputBal > 0) {
-            try IUniswapRouterETH(unirouter).getAmountsOut(outputBal, outputToNativeRoute)
-                returns (uint256[] memory amountOut) 
-            {
+            try
+                IUniswapRouterETH(unirouter).getAmountsOut(
+                    outputBal,
+                    outputToNativeRoute
+                )
+            returns (uint256[] memory amountOut) {
                 nativeOut = amountOut[amountOut.length - 1];
-            }
-            catch {}
+            } catch {}
         }
 
-        return nativeOut.mul(45).div(1000).mul(callFee).div(MAX_FEE); // Returns 
+        return nativeOut.mul(45).div(1000).mul(callFee).div(MAX_FEE); // Returns for harvester
     }
 
     function outputToNative() public view returns (address[] memory) {
