@@ -12,6 +12,20 @@ interface IbeFTM {
     function claimStakingReward() external;
 }
 
+interface IRewardPool {
+    function deposit(uint256 amount) external;
+
+    function stake(uint256 amount) external;
+
+    function withdraw(uint256 amount) external;
+
+    function earned(address account) external view returns (uint256);
+
+    function getReward() external;
+
+    function balanceOf(address account) external view returns (uint256);
+}
+
 contract beFTMRewardPool is LPTokenWrapper, Ownable {
     IERC20 public rewardToken;
     uint256 public constant DURATION = 1 days; // 86400
@@ -30,10 +44,11 @@ contract beFTMRewardPool is LPTokenWrapper, Ownable {
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
 
-    constructor(address _stakedToken, address _rewardToken, address _beFTM)
-        public
-        LPTokenWrapper(_stakedToken)
-    {
+    constructor(
+        address _stakedToken,
+        address _rewardToken,
+        address _beFTM
+    ) public LPTokenWrapper(_stakedToken) {
         rewardToken = IERC20(_rewardToken);
         beFTM = _beFTM;
     }
@@ -107,7 +122,9 @@ contract beFTMRewardPool is LPTokenWrapper, Ownable {
     function claimAndNotify() public {
         uint256 beforeBal = IERC20(rewardToken).balanceOf(address(this));
         IbeFTM(beFTM).claimStakingReward();
-        uint256 claimedBal = IERC20(rewardToken).balanceOf(address(this)).sub(beforeBal);
+        uint256 claimedBal = IERC20(rewardToken).balanceOf(address(this)).sub(
+            beforeBal
+        );
         if (claimedBal > 0) {
             _notifyRewardAmount(claimedBal);
         }
