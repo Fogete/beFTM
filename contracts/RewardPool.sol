@@ -89,7 +89,7 @@ contract beFTMRewardPool is LPTokenWrapper, Ownable {
                 .add(rewards[account]);
     }
 
-    // stake visibility is public as overriding LPTokenWrapper's stake() function
+    // Stake visibility is public as overriding LPTokenWrapper's stake() function
     function stake(uint256 amount) public updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         if (notifyOnDeposit) {
@@ -120,7 +120,7 @@ contract beFTMRewardPool is LPTokenWrapper, Ownable {
     }
 
     function claimAndNotify() public {
-        uint256 beforeBal = IERC20(rewardToken).balanceOf(address(this));
+        uint256 beforeBal = IERC20(rewardToken).balanceOf(address(this)); // wFTM
         IbeFTM(beFTM).claimStakingReward();
         uint256 claimedBal = IERC20(rewardToken).balanceOf(address(this)).sub(
             beforeBal
